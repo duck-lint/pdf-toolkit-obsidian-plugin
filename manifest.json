@@ -1,0 +1,10 @@
+{
+  "id": "pdf-toolkit",
+  "name": "PDF Toolkit",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Run the pdf-toolkit CLI from Obsidian and track runs via manifests.",
+  "author": "duck-lint",
+  "authorUrl": "",
+  "isDesktopOnly": true
+}

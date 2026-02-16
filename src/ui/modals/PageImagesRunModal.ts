@@ -1,0 +1,172 @@
+import { App, Modal, Notice, Setting, TFolder } from "obsidian";
+
+export type PageImagesMode = "auto" | "split" | "crop";
+
+export interface PageImagesRunOptions {
+  inDir: string;
+  mode: PageImagesMode;
+  glob: string;
+  overwrite: boolean;
+  debug: boolean;
+}
+
+type PageImagesRunResolve = (value: PageImagesRunOptions | null) => void;
+
+export class PageImagesRunModal extends Modal {
+  private readonly resolve: PageImagesRunResolve;
+  private readonly folders: TFolder[];
+  private settled = false;
+
+  private inDir = "";
+  private mode: PageImagesMode = "auto";
+  private globValue = "*.png";
+  private overwrite = false;
+  private debug = false;
+
+  constructor(app: App, folders: TFolder[], resolve: PageImagesRunResolve) {
+    super(app);
+    this.resolve = resolve;
+    this.folders = folders;
+    this.inDir = folders[0]?.path ?? "";
+  }
+
+  static async open(app: App): Promise<PageImagesRunOptions | null> {
+    const folders = getVaultFolders(app)
+      .filter((folder) => !isHiddenOrSystemFolder(folder))
+      .sort((a, b) => a.path.localeCompare(b.path));
+
+    return await new Promise((resolve) => {
+      const modal = new PageImagesRunModal(app, folders, resolve);
+      modal.open();
+    });
+  }
+
+  onOpen(): void {
+    this.titleEl.setText("Split spreads + crop images in folder");
+
+    if (this.folders.length === 0) {
+      this.contentEl.createEl("p", {
+        text: "No folders are available in this vault.",
+      });
+      const closeBtn = this.contentEl.createEl("button", { text: "Close" });
+      closeBtn.addEventListener("click", () => this.close());
+      return;
+    }
+
+    new Setting(this.contentEl)
+      .setName("Input folder")
+      .setDesc("Vault folder containing page images.")
+      .addDropdown((dropdown) => {
+        for (const folder of this.folders) {
+          dropdown.addOption(folder.path, folder.path);
+        }
+        dropdown
+          .setValue(this.inDir)
+          .onChange((value) => {
+            this.inDir = value;
+          });
+      });
+
+    new Setting(this.contentEl)
+      .setName("Mode")
+      .setDesc("auto=split wides, split=always split, crop=never split")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("auto", "auto")
+          .addOption("split", "split")
+          .addOption("crop", "crop")
+          .setValue(this.mode)
+          .onChange((value: PageImagesMode) => {
+            this.mode = value;
+          }),
+      );
+
+    new Setting(this.contentEl)
+      .setName("Glob pattern")
+      .setDesc('Input file pattern (default: "*.png").')
+      .addText((text) =>
+        text
+          .setValue(this.globValue)
+          .onChange((value) => {
+            this.globValue = value.trim();
+          }),
+      );
+
+    new Setting(this.contentEl)
+      .setName("Overwrite existing files")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.overwrite)
+          .onChange((value) => {
+            this.overwrite = value;
+          }),
+      );
+
+    new Setting(this.contentEl)
+      .setName("Debug overlay")
+      .setDesc("Write decision overlays to _debug inside the run output folder.")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.debug)
+          .onChange((value) => {
+            this.debug = value;
+          }),
+      );
+
+    const buttons = this.contentEl.createDiv({ cls: "modal-button-container" });
+    const cancelBtn = buttons.createEl("button", { text: "Cancel" });
+    cancelBtn.addEventListener("click", () => {
+      this.settle(null);
+      this.close();
+    });
+
+    const runBtn = buttons.createEl("button", { cls: "mod-cta", text: "Run" });
+    runBtn.addEventListener("click", () => {
+      if (!this.inDir) {
+        new Notice("Input folder is required.");
+        return;
+      }
+      if (!this.globValue) {
+        new Notice("Glob pattern cannot be empty.");
+        return;
+      }
+
+      this.settle({
+        inDir: this.inDir,
+        mode: this.mode,
+        glob: this.globValue,
+        overwrite: this.overwrite,
+        debug: this.debug,
+      });
+      this.close();
+    });
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+    this.settle(null);
+  }
+
+  private settle(value: PageImagesRunOptions | null): void {
+    if (this.settled) return;
+    this.settled = true;
+    this.resolve(value);
+  }
+}
+
+function isHiddenOrSystemFolder(folder: TFolder): boolean {
+  return folder.path.split("/").some((segment) => segment.startsWith("."));
+}
+
+function getVaultFolders(app: App): TFolder[] {
+  const maybeGetAllFolders = (app.vault as unknown as {
+    getAllFolders?: (includeRoot?: boolean) => TFolder[];
+  }).getAllFolders;
+  if (typeof maybeGetAllFolders === "function") {
+    return maybeGetAllFolders.call(app.vault, false);
+  }
+
+  return app.vault
+    .getAllLoadedFiles()
+    .filter((item): item is TFolder => item instanceof TFolder && !item.isRoot());
+}

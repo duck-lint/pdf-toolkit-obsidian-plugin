@@ -1,0 +1,14 @@
+node_modules/
+dist/
+main.js
+main.js.map
+.DS_Store
+
+# Obsidian test vault
+.obsidian/
+
+# Editor
+.vscode/
+
+# zip artifacts
+*.zip
