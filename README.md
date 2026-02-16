@@ -1,6 +1,6 @@
 # PDF Toolkit (Obsidian plugin)
 
-Thin Obsidian desktop wrapper around the `pdf-toolkit` CLI.
+Thin Obsidian desktop wrapper around the `pdf-toolkit` CLI. (https://github.com/duck-lint/PDF-toolkit)
 
 ## What this plugin does
 - Runs `pdf-toolkit` as a subprocess.
