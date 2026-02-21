@@ -6,6 +6,8 @@ export interface PageImagesRunOptions {
   inDir: string;
   mode: PageImagesMode;
   glob: string;
+  gutterTrimPx: number;
+  edgeInsetPx: number;
   overwrite: boolean;
   debug: boolean;
 }
@@ -20,6 +22,8 @@ export class PageImagesRunModal extends Modal {
   private inDir = "";
   private mode: PageImagesMode = "auto";
   private globValue = "*.png";
+  private gutterTrimPxValue = "0";
+  private edgeInsetPxValue = "0";
   private overwrite = false;
   private debug = false;
 
@@ -93,6 +97,28 @@ export class PageImagesRunModal extends Modal {
       );
 
     new Setting(this.contentEl)
+      .setName("Gutter trim (px)")
+      .setDesc("Shave pixels on both sides of the gutter after split.")
+      .addText((text) =>
+        text
+          .setValue(this.gutterTrimPxValue)
+          .onChange((value) => {
+            this.gutterTrimPxValue = value.trim();
+          }),
+      );
+
+    new Setting(this.contentEl)
+      .setName("Edge inset (px)")
+      .setDesc("Inset final crop box inward to remove faint borders.")
+      .addText((text) =>
+        text
+          .setValue(this.edgeInsetPxValue)
+          .onChange((value) => {
+            this.edgeInsetPxValue = value.trim();
+          }),
+      );
+
+    new Setting(this.contentEl)
       .setName("Overwrite existing files")
       .addToggle((toggle) =>
         toggle
@@ -131,10 +157,28 @@ export class PageImagesRunModal extends Modal {
         return;
       }
 
+      const gutterTrimPx = this.gutterTrimPxValue
+        ? Number.parseInt(this.gutterTrimPxValue, 10)
+        : 0;
+      if (!Number.isInteger(gutterTrimPx) || gutterTrimPx < 0) {
+        new Notice("Gutter trim (px) must be an integer >= 0.");
+        return;
+      }
+
+      const edgeInsetPx = this.edgeInsetPxValue
+        ? Number.parseInt(this.edgeInsetPxValue, 10)
+        : 0;
+      if (!Number.isInteger(edgeInsetPx) || edgeInsetPx < 0) {
+        new Notice("Edge inset (px) must be an integer >= 0.");
+        return;
+      }
+
       this.settle({
         inDir: this.inDir,
         mode: this.mode,
         glob: this.globValue,
+        gutterTrimPx,
+        edgeInsetPx,
         overwrite: this.overwrite,
         debug: this.debug,
       });

@@ -343,6 +343,12 @@ export default class PdfToolkitPlugin extends Plugin {
         "--glob", runOptions.glob,
         "--mode", runOptions.mode,
       ];
+      if (runOptions.gutterTrimPx > 0) {
+        args.push("--gutter_trim_px", String(runOptions.gutterTrimPx));
+      }
+      if (runOptions.edgeInsetPx > 0) {
+        args.push("--edge_inset_px", String(runOptions.edgeInsetPx));
+      }
       if (runOptions.overwrite) args.push("--overwrite");
       if (runOptions.debug) args.push("--debug");
 
