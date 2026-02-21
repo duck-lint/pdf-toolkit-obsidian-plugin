@@ -349,8 +349,17 @@ export default class PdfToolkitPlugin extends Plugin {
       if (runOptions.edgeInsetPx > 0) {
         args.push("--edge_inset_px", String(runOptions.edgeInsetPx));
       }
-      if (runOptions.outerMarginFrac > 0) {
-        args.push("--outer_margin_frac", String(runOptions.outerMarginFrac));
+      if (runOptions.outerMarginMode !== "off") {
+        args.push("--outer_margin_mode", runOptions.outerMarginMode);
+      }
+      if (runOptions.outerMarginMode === "fixed" && runOptions.outerMarginFixedPercent > 0) {
+        args.push("--outer_margin_frac", String(runOptions.outerMarginFixedPercent / 100));
+      }
+      if (runOptions.outerMarginMode === "auto") {
+        args.push(
+          "--outer_margin_auto_max_frac",
+          String(runOptions.outerMarginAutoMaxPercent / 100),
+        );
       }
       if (runOptions.symmetryStrategy !== "independent") {
         args.push("--symmetry_strategy", runOptions.symmetryStrategy);

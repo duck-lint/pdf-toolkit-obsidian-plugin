@@ -1,6 +1,7 @@
 import { App, Modal, Notice, Setting, TFolder } from "obsidian";
 
 export type PageImagesMode = "auto" | "split" | "crop";
+export type OuterMarginMode = "off" | "fixed" | "auto";
 export type PageImagesSymmetryStrategy =
   | "independent"
   | "match_max_width"
@@ -12,7 +13,9 @@ export interface PageImagesRunOptions {
   glob: string;
   gutterTrimPx: number;
   edgeInsetPx: number;
-  outerMarginFrac: number;
+  outerMarginMode: OuterMarginMode;
+  outerMarginFixedPercent: number;
+  outerMarginAutoMaxPercent: number;
   symmetryStrategy: PageImagesSymmetryStrategy;
   overwrite: boolean;
   debug: boolean;
@@ -30,7 +33,9 @@ export class PageImagesRunModal extends Modal {
   private globValue = "*.png";
   private gutterTrimPxValue = "0";
   private edgeInsetPxValue = "0";
-  private outerMarginPercentValue = "";
+  private outerMarginMode: OuterMarginMode = "off";
+  private outerMarginFixedPercentValue = "";
+  private outerMarginAutoMaxPercentValue = "15";
   private symmetryStrategy: PageImagesSymmetryStrategy = "independent";
   private overwrite = false;
   private debug = false;
@@ -126,16 +131,51 @@ export class PageImagesRunModal extends Modal {
           }),
       );
 
-    new Setting(this.contentEl)
-      .setName("Outer margin clamp (%)")
-      .setDesc("Clamp away from outer edge. Allowed: 0 to 25%.")
-      .addText((text) =>
-        text
-          .setValue(this.outerMarginPercentValue)
-          .onChange((value) => {
-            this.outerMarginPercentValue = value.trim();
+    const outerModeSetting = new Setting(this.contentEl)
+      .setName("Outer margin clamp")
+      .setDesc("Off, fixed %, or auto black-bar detection.")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("off", "Off")
+          .addOption("fixed", "Fixed (%)")
+          .addOption("auto", "Auto (detect black bar)")
+          .setValue(this.outerMarginMode)
+          .onChange((value: OuterMarginMode) => {
+            this.outerMarginMode = value;
+            setOuterClampInputVisibility();
           }),
       );
+
+    const fixedOuterSetting = new Setting(this.contentEl)
+      .setName("Fixed outer clamp (%)")
+      .setDesc("Used only in Fixed mode. Allowed: 0 to 25.")
+      .addText((text) =>
+        text
+          .setValue(this.outerMarginFixedPercentValue)
+          .onChange((value) => {
+            this.outerMarginFixedPercentValue = value.trim();
+          }),
+      );
+
+    const autoOuterSetting = new Setting(this.contentEl)
+      .setName("Auto clamp max (%)")
+      .setDesc("Caps shaving in Auto mode even if detection is noisy.")
+      .addText((text) =>
+        text
+          .setValue(this.outerMarginAutoMaxPercentValue)
+          .onChange((value) => {
+            this.outerMarginAutoMaxPercentValue = value.trim();
+          }),
+      );
+
+    const setOuterClampInputVisibility = (): void => {
+      fixedOuterSetting.settingEl.style.display =
+        this.outerMarginMode === "fixed" ? "" : "none";
+      autoOuterSetting.settingEl.style.display =
+        this.outerMarginMode === "auto" ? "" : "none";
+      outerModeSetting.settingEl.style.display = "";
+    };
+    setOuterClampInputVisibility();
 
     new Setting(this.contentEl)
       .setName("Symmetry strategy")
@@ -206,18 +246,35 @@ export class PageImagesRunModal extends Modal {
         return;
       }
 
-      const outerMarginPercent = this.outerMarginPercentValue
-        ? Number.parseFloat(this.outerMarginPercentValue)
+      const outerMarginFixedPercent = this.outerMarginFixedPercentValue
+        ? Number.parseFloat(this.outerMarginFixedPercentValue)
         : 0;
       if (
-        !Number.isFinite(outerMarginPercent)
-        || outerMarginPercent < 0
-        || outerMarginPercent > 25
+        this.outerMarginMode === "fixed"
+        && (
+          !Number.isFinite(outerMarginFixedPercent)
+          || outerMarginFixedPercent < 0
+          || outerMarginFixedPercent > 25
+        )
       ) {
-        new Notice("Outer margin clamp (%) must be a number from 0 to 25.");
+        new Notice("Fixed outer clamp (%) must be a number from 0 to 25.");
         return;
       }
-      const outerMarginFrac = outerMarginPercent / 100;
+
+      const outerMarginAutoMaxPercent = this.outerMarginAutoMaxPercentValue
+        ? Number.parseFloat(this.outerMarginAutoMaxPercentValue)
+        : 15;
+      if (
+        this.outerMarginMode === "auto"
+        && (
+          !Number.isFinite(outerMarginAutoMaxPercent)
+          || outerMarginAutoMaxPercent < 0
+          || outerMarginAutoMaxPercent > 25
+        )
+      ) {
+        new Notice("Auto clamp max (%) must be a number from 0 to 25.");
+        return;
+      }
 
       this.settle({
         inDir: this.inDir,
@@ -225,7 +282,9 @@ export class PageImagesRunModal extends Modal {
         glob: this.globValue,
         gutterTrimPx,
         edgeInsetPx,
-        outerMarginFrac,
+        outerMarginMode: this.outerMarginMode,
+        outerMarginFixedPercent,
+        outerMarginAutoMaxPercent,
         symmetryStrategy: this.symmetryStrategy,
         overwrite: this.overwrite,
         debug: this.debug,
