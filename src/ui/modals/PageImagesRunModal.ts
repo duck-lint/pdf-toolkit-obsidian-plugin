@@ -1,6 +1,10 @@
 import { App, Modal, Notice, Setting, TFolder } from "obsidian";
 
 export type PageImagesMode = "auto" | "split" | "crop";
+export type PageImagesSymmetryStrategy =
+  | "independent"
+  | "match_max_width"
+  | "mirror_from_gutter";
 
 export interface PageImagesRunOptions {
   inDir: string;
@@ -8,6 +12,8 @@ export interface PageImagesRunOptions {
   glob: string;
   gutterTrimPx: number;
   edgeInsetPx: number;
+  outerMarginFrac: number;
+  symmetryStrategy: PageImagesSymmetryStrategy;
   overwrite: boolean;
   debug: boolean;
 }
@@ -24,6 +30,8 @@ export class PageImagesRunModal extends Modal {
   private globValue = "*.png";
   private gutterTrimPxValue = "0";
   private edgeInsetPxValue = "0";
+  private outerMarginPercentValue = "";
+  private symmetryStrategy: PageImagesSymmetryStrategy = "independent";
   private overwrite = false;
   private debug = false;
 
@@ -119,6 +127,31 @@ export class PageImagesRunModal extends Modal {
       );
 
     new Setting(this.contentEl)
+      .setName("Outer margin clamp (%)")
+      .setDesc("Clamp away from outer edge. Allowed: 0 to 25%.")
+      .addText((text) =>
+        text
+          .setValue(this.outerMarginPercentValue)
+          .onChange((value) => {
+            this.outerMarginPercentValue = value.trim();
+          }),
+      );
+
+    new Setting(this.contentEl)
+      .setName("Symmetry strategy")
+      .setDesc("Apply after left/right crop boxes are computed.")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("independent", "Independent")
+          .addOption("match_max_width", "Match max width")
+          .addOption("mirror_from_gutter", "Mirror from gutter")
+          .setValue(this.symmetryStrategy)
+          .onChange((value: PageImagesSymmetryStrategy) => {
+            this.symmetryStrategy = value;
+          }),
+      );
+
+    new Setting(this.contentEl)
       .setName("Overwrite existing files")
       .addToggle((toggle) =>
         toggle
@@ -173,12 +206,27 @@ export class PageImagesRunModal extends Modal {
         return;
       }
 
+      const outerMarginPercent = this.outerMarginPercentValue
+        ? Number.parseFloat(this.outerMarginPercentValue)
+        : 0;
+      if (
+        !Number.isFinite(outerMarginPercent)
+        || outerMarginPercent < 0
+        || outerMarginPercent > 25
+      ) {
+        new Notice("Outer margin clamp (%) must be a number from 0 to 25.");
+        return;
+      }
+      const outerMarginFrac = outerMarginPercent / 100;
+
       this.settle({
         inDir: this.inDir,
         mode: this.mode,
         glob: this.globValue,
         gutterTrimPx,
         edgeInsetPx,
+        outerMarginFrac,
+        symmetryStrategy: this.symmetryStrategy,
         overwrite: this.overwrite,
         debug: this.debug,
       });
