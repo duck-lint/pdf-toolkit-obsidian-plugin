@@ -4,6 +4,8 @@ Desktop-only Obsidian wrapper around the [`pdf-toolkit` CLI](https://github.com/
 
 This plugin is intentionally **thin**: Obsidian provides a small UI (option modals + job panel), while the CLI remains the contract for all real work (outputs + `manifest.json`).
 
+<img width="825" height="1158" alt="image" src="https://github.com/user-attachments/assets/81a6ef89-4571-47cd-8bec-f22ef3210723" />
+
 ## Why this exists
 
 This started as a local-first alternative to subscription PDF tooling and untrusted freeware. I wanted a small, offline CLI pipeline for preparing scanned PDFs into OCR-ready page images (rotate, render, crop, split spreads) with deterministic outputs.
