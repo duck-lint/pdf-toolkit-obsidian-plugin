@@ -16,6 +16,7 @@ Design choices:
 - **Outputs stay in-vault** under a per-run folder
 - **Audit trail** via CLI-written `manifest.json` per run
 - **Lean run history** stored via Obsidian plugin data (kept small + bounded)
+- **Outputs** stay in-vault under <run-id>/ + manifest per run
 
 ---
 
