@@ -159,7 +159,7 @@ export class PageImagesRunModal extends Modal {
 
     const autoOuterSetting = new Setting(this.contentEl)
       .setName("Auto clamp max (%)")
-      .setDesc("Caps shaving in Auto mode even if detection is noisy.")
+      .setDesc("Caps shaving in Auto mode. Scan window is automatically expanded to at least this value.")
       .addText((text) =>
         text
           .setValue(this.outerMarginAutoMaxPercentValue)
