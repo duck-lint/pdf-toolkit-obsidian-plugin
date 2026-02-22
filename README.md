@@ -4,9 +4,11 @@ Desktop-only Obsidian wrapper around the [`pdf-toolkit` CLI](https://github.com/
 
 This plugin is intentionally **thin**: Obsidian provides a small UI (option modals + job panel), while the CLI remains the contract for all real work (outputs + `manifest.json`).
 
-## Why this exists (implementation lens)
+## Why this exists
 
-PDF handling is a classic “paper cut” workflow: rotate a few pages, split a file, render to images, crop/split spreads, and keep outputs organized. The value isn’t fancy UI — it’s **repeatability**, **predictable outputs**, and **handoff-friendly artifacts**.
+This started as a local-first alternative to subscription PDF tooling and untrusted freeware. I wanted a small, offline CLI pipeline for preparing scanned PDFs into OCR-ready page images (rotate, render, crop, split spreads) with deterministic outputs.
+
+The CLI stays the contract so it’s easy to automate, debug, and wrap with a thin UI (e.g., Obsidian) without duplicating logic.
 
 Design choices:
 - **CLI-first contract** (the CLI is the source of truth; the plugin just calls it)
@@ -155,69 +157,4 @@ The job record includes:
   * direct terminal usage
   * scripts/automation
   * Obsidian UI calls
-
----
-
-## License
-
-MIT (or update if different)
-
-````
-
-Now, for the “other pinned repo README” (your OCR pipeline): I don’t have that repo contents attached in this chat, so I can’t truthfully “review” it line-by-line — but I *can* give you a job-facing README template that matches the toolchain story and won’t accidentally sound like a dev diary. Paste + adjust only what’s true.
-
-```markdown
-# OCR → Markdown Pipeline (CLI-first)
-
-Local, repeatable OCR pipeline that turns page images into cleaned Markdown suitable for knowledge workflows (e.g., Obsidian), with debug artifacts to make failures inspectable.
-
-This is designed like an implementation tool: predictable inputs/outputs, explicit configuration, and artifacts that survive handoffs.
-
-## Where it fits
-
-Typical flow:
-1) Prep PDF → page images (see `PDF-toolkit`)
-2) OCR page images → text
-3) Normalize/clean → Markdown
-4) Emit outputs + debug artifacts for traceability
-
-## Features (edit to match what’s true)
-
-- CLI-first execution (scriptable + automatable)
-- Deterministic output folders and naming
-- Optional “cleaning” stage (normalize whitespace, fix hyphenation, etc.)
-- Debug artifacts (intermediate images/logs/JSON) to understand OCR failures
-- Safe-by-default flags (dry-run / overwrite / max-files), where relevant
-
-## Quickstart
-
-```bash
-# example — replace with your real command(s)
-python -m ocr_obsidian run --in_dir "out/pages_single" --out_dir "out/md" --debug
-````
-
-## Inputs / Outputs
-
-Inputs:
-
-* A folder of page images (PNG/JPG)
-* (Optional) config file(s)
-
-Outputs:
-
-* Markdown files (one-per-page or one-per-section — whichever you do)
-* Debug folder (if enabled)
-* Run log / manifest (if you produce one)
-
-## Design principles
-
-* Make failures inspectable (debug artifacts > silent “best effort”)
-* Prefer explicit configuration and predictable naming
-* Keep the contract stable (CLI usable from terminal, scripts, or a thin UI wrapper)
-
-## Requirements
-
-* Python 3.x
-* OCR engine(s): (list what you actually use)
-* Any optional deps
 
