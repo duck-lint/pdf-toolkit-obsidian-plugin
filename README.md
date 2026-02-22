@@ -8,9 +8,10 @@ This plugin is intentionally **thin**: Obsidian provides a small UI (option moda
 
 ## Why this exists
 
-This started as a local-first alternative to subscription PDF tooling and untrusted freeware. I wanted a small, offline CLI pipeline for preparing scanned PDFs into OCR-ready page images (rotate, render, crop, split spreads) with deterministic outputs.
+## Why this exists
 
-The CLI stays the contract so it’s easy to automate, debug, and wrap with a thin UI (e.g., Obsidian) without duplicating logic.
+I built the CLI to keep PDF prep local-first (no subscriptions, no uploading documents to random tools).  
+This plugin exists to make that same CLI workflow usable inside Obsidian with minimal friction, while keeping the CLI as the stable contract.
 
 Design choices:
 - **CLI-first contract** (the CLI is the source of truth; the plugin just calls it)
