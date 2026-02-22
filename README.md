@@ -8,8 +8,6 @@ This plugin is intentionally **thin**: Obsidian provides a small UI (option moda
 
 ## Why this exists
 
-## Why this exists
-
 I built the CLI to keep PDF prep local-first (no subscriptions, no uploading documents to random tools).  
 This plugin exists to make that same CLI workflow usable inside Obsidian with minimal friction, while keeping the CLI as the stable contract.
 
