@@ -284,7 +284,7 @@
       ],
       "evidence_strength": "strong",
       "transferable": true,
-      "notes": "Simple but important filesystem hygiene pattern. Prevents plugin from operating on .obsidian, .git, or other dotfolders."
+      "notes": "Simple but important filesystem hygiene pattern. Prevents plugin from operating on .obsidian, .git, or other dot-prefixed folders."
     },
     {
       "id": "SK-025",
