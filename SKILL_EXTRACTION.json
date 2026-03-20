@@ -1,0 +1,501 @@
+{
+  "repository_summary": {
+    "name": "pdf-toolkit-obsidian-plugin",
+    "owner": "duck-lint",
+    "description": "A lean Obsidian Desktop plugin (~1,400 LOC TypeScript) that wraps the pdf-toolkit CLI, providing modal-driven configuration UI, subprocess lifecycle management, job history tracking, and vault-integrated output storage. The plugin enforces a strict CLI-first contract: the CLI is the source of truth for PDF operations, and the plugin is a thin orchestration and presentation layer.",
+    "tech_stack": [
+      "TypeScript (strict mode)",
+      "Obsidian Plugin API (v1.5+)",
+      "esbuild (bundler)",
+      "Node.js child_process (subprocess spawning)",
+      "Electron shell API (folder reveal)"
+    ],
+    "scale": "9 source files, ~1,414 lines of TypeScript, 0 runtime dependencies, 0 tests, 0 CI workflows"
+  },
+  "atomic_skills": [
+    {
+      "id": "SK-001",
+      "skill": "Designing a plugin as a thin wrapper around an external CLI tool",
+      "evidence": [
+        "src/main.ts: All PDF operations delegate to runPdfToolkit() which spawns the CLI as a subprocess",
+        "src/cli.ts: CLI invocation abstracted behind RunCliResult interface; plugin never implements PDF logic",
+        "README.md: Explicitly states 'The CLI is the source of truth; this plugin just calls it'"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Demonstrates architectural discipline of separation between orchestration layer and domain logic. Directly applicable to any tool-wrapping integration pattern."
+    },
+    {
+      "id": "SK-002",
+      "skill": "Spawning and managing child processes from Node.js with stream accumulation",
+      "evidence": [
+        "src/cli.ts: spawn() from child_process with stdout/stderr stream concatenation via on('data') handlers",
+        "src/cli.ts: Promise wrapper around callback-based child process API, resolving on 'close' event",
+        "src/cli.ts: windowsHide: true option for cross-platform console suppression"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Standard subprocess pattern with proper stream handling and exit code capture."
+    },
+    {
+      "id": "SK-003",
+      "skill": "Implementing Promise-based modal dialogs that return structured options or null on cancel",
+      "evidence": [
+        "src/ui/modals/RenderOptionsModal.ts: static async open() wraps modal in Promise with resolve callback",
+        "src/ui/modals/SplitOptionsModal.ts: Same pattern with discriminated union return type",
+        "src/ui/modals/RotateOptionsModal.ts: Same pattern",
+        "src/ui/modals/PageImagesRunModal.ts: Same pattern with complex 11-field options object"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Consistent pattern applied across all four modals. The settle() guard ensures callback fires exactly once, preventing double-resolution bugs."
+    },
+    {
+      "id": "SK-004",
+      "skill": "Defining TypeScript interfaces with literal types and discriminated unions for domain options",
+      "evidence": [
+        "src/settings.ts: Verbosity = 'quiet' | 'normal' | 'verbose'",
+        "src/ui/modals/SplitOptionsModal.ts: SplitStrategy = 'ranges' | 'pages_per_file' with conditional required fields",
+        "src/ui/modals/RotateOptionsModal.ts: RotateDegrees = 90 | 180 | 270 (numeric literal union)",
+        "src/ui/modals/PageImagesRunModal.ts: PageImagesMode, OuterMarginMode, PageImagesSymmetryStrategy enums as string literal unions"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Consistent use of string and numeric literal unions to encode domain constraints at the type level rather than as runtime-only checks."
+    },
+    {
+      "id": "SK-005",
+      "skill": "Building form UIs with conditional field visibility driven by dropdown state",
+      "evidence": [
+        "src/ui/modals/PageImagesRunModal.ts: setOuterClampInputVisibility() closure toggles display of fixed/auto fields based on outerMarginMode selection",
+        "src/ui/modals/SplitOptionsModal.ts: Strategy dropdown changes which input is validated on submit"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Demonstrates imperative DOM manipulation for conditional form logic, using closures to capture Setting element references."
+    },
+    {
+      "id": "SK-006",
+      "skill": "Implementing input validation with user-facing error notices in modal forms",
+      "evidence": [
+        "src/ui/modals/RenderOptionsModal.ts: DPI validated as integer in range 72-600 with Notice on failure",
+        "src/ui/modals/SplitOptionsModal.ts: Conditional validation (ranges non-empty vs pagesPerFile 1-10000)",
+        "src/ui/modals/PageImagesRunModal.ts: Six-step validation chain covering required fields, integer bounds, and float ranges 0-25"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Validation is performed at form submission time, not on keystroke. Each validation failure triggers a Notice and early return."
+    },
+    {
+      "id": "SK-007",
+      "skill": "Managing plugin lifecycle in the Obsidian API (onload, onunload, command registration, view registration)",
+      "evidence": [
+        "src/main.ts: Extends Plugin, implements onload() with settings loading, command registration via addCommand(), view registration via registerView(), settings tab via addSettingTab()",
+        "src/main.ts: Four commands registered (render, split, rotate, page-images) each with unique ID and name",
+        "src/ui/JobsView.ts: Extends ItemView with getViewType(), getDisplayText(), onOpen()"
+      ],
+      "evidence_strength": "strong",
+      "transferable": false,
+      "notes": "Obsidian-specific API knowledge. Transferable conceptually to any plugin system with lifecycle hooks and command registration."
+    },
+    {
+      "id": "SK-008",
+      "skill": "Constructing CLI argument arrays from structured options objects",
+      "evidence": [
+        "src/main.ts: renderCommand() builds args like ['render', '--dpi', String(options.dpi), '--output-dir', absOutDir]",
+        "src/main.ts: splitCommand() conditionally adds --ranges or --pages-per-file based on strategy",
+        "src/main.ts: rotateCommand() maps degrees and optional pages to CLI flags",
+        "src/main.ts: pageImagesCommand() assembles 10+ flags from PageImagesRunOptions"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Typed options are mapped to CLI string arrays with proper type coercion (String(), Number.parseInt). Each command builder handles conditional flag inclusion."
+    },
+    {
+      "id": "SK-009",
+      "skill": "Designing a job record schema for tracking subprocess execution history",
+      "evidence": [
+        "src/jobsStore.ts: JobRecord interface with id, startedAt, endedAt, status ('ok'|'error'), exitCode, command[], inputPath, outputDir, manifestPath, stdoutTail, stderrTail, error",
+        "src/jobsStore.ts: upsert() method with find-by-id replacement or prepend, bounded to 200 records",
+        "src/main.ts: Job created at start (status pending), updated on completion with exit code and output tails"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Clean record lifecycle: created before execution, updated after. Bounded storage prevents unbounded growth. Tail truncation at 20KB keeps storage reasonable."
+    },
+    {
+      "id": "SK-010",
+      "skill": "Persisting plugin state alongside settings using key-partitioned JSON storage",
+      "evidence": [
+        "src/main.ts: loadSettings() reads plugin data, destructures {jobs, ...rest} to separate concerns",
+        "src/main.ts: saveSettings() merges settings with existing data to preserve jobs key",
+        "src/jobsStore.ts: load()/save() read and write jobs array under 'jobs' key in shared plugin data"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Demonstrates a pragmatic key-partitioning scheme for co-locating heterogeneous data in a single JSON blob without namespace collisions."
+    },
+    {
+      "id": "SK-011",
+      "skill": "Generating collision-resistant run identifiers from timestamps and random hex",
+      "evidence": [
+        "src/cli.ts: makeRunId() produces format YYYY-MM-DDTHH-mm-ss-mmm_xxxxxx where xxxxxx is 6 hex digits from Math.random()"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Timestamp provides human-readable ordering; random suffix prevents collisions for rapid sequential runs."
+    },
+    {
+      "id": "SK-012",
+      "skill": "Creating vault-relative output directories with incremental path segment creation",
+      "evidence": [
+        "src/main.ts: ensureFolderExists() builds path segments incrementally, checks existence at each level, creates missing segments, handles race conditions gracefully"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Equivalent to mkdir -p but implemented through the Obsidian vault adapter API. Handles concurrent creation gracefully."
+    },
+    {
+      "id": "SK-013",
+      "skill": "Resolving vault-relative paths to absolute filesystem paths for subprocess invocation",
+      "evidence": [
+        "src/main.ts: Uses this.app.vault.adapter.basePath to resolve absolute paths from vault-relative TFile.path values before passing to CLI",
+        "src/main.ts: normalizePath() used for vault-relative path construction"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Critical for bridging Obsidian's vault abstraction with filesystem-level CLI operations."
+    },
+    {
+      "id": "SK-014",
+      "skill": "Implementing a reentrancy guard to prevent concurrent execution of long-running operations",
+      "evidence": [
+        "src/main.ts: pageImagesFlowRunning boolean flag checked at entry, set true during execution, reset in finally block"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Simple but effective mutex-like pattern for UI-triggered async operations. Prevents double-submission."
+    },
+    {
+      "id": "SK-015",
+      "skill": "Truncating captured subprocess output to a bounded tail for storage efficiency",
+      "evidence": [
+        "src/main.ts: OUTPUT_TAIL_LIMIT = 20 * 1024; stdout/stderr sliced to last 20KB before storing in job record",
+        "src/main.ts: Error field separately truncated to 2KB"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Prevents unbounded storage growth from verbose CLI output while preserving the most recent (and typically most useful) output."
+    },
+    {
+      "id": "SK-016",
+      "skill": "Rendering a sidebar view with imperative DOM construction in Obsidian",
+      "evidence": [
+        "src/ui/JobsView.ts: Extends ItemView, uses contentEl.createEl() for structured HTML generation",
+        "src/ui/JobsView.ts: Renders job cards with status badges, expandable details (HTML <details>), action buttons",
+        "src/ui/JobsView.ts: Full re-render on refresh via contentEl.empty() then rebuild"
+      ],
+      "evidence_strength": "strong",
+      "transferable": false,
+      "notes": "Obsidian-specific DOM API. Pattern of full re-render is simple but effective for small lists."
+    },
+    {
+      "id": "SK-017",
+      "skill": "Configuring esbuild for Obsidian plugin bundling with external dependencies",
+      "evidence": [
+        "esbuild.config.mjs: CJS output format, ES2018 target, externals for obsidian/electron/builtins",
+        "esbuild.config.mjs: Watch mode for development, minification for production, conditional sourcemaps"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Standard esbuild configuration pattern. The external list is Obsidian-specific but the bundler configuration skill is broadly transferable."
+    },
+    {
+      "id": "SK-018",
+      "skill": "Writing TypeScript with strict mode and explicit type narrowing",
+      "evidence": [
+        "tsconfig.json: strict: true, noImplicitAny: true, forceConsistentCasingInFileNames: true",
+        "src/ui/modals/PageImagesRunModal.ts: Type predicate (item): item is TFolder => item instanceof TFolder",
+        "src/main.ts: Type narrowing with instanceof TFile checks before accessing file properties",
+        "src/ui/modals/PageImagesRunModal.ts: Type-safe API detection with unknown cast and typeof check"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Consistent strict TypeScript discipline across the codebase. Type predicates and safe API detection show awareness of runtime type safety."
+    },
+    {
+      "id": "SK-019",
+      "skill": "Implementing type-safe API version fallbacks for evolving platform APIs",
+      "evidence": [
+        "src/ui/modals/PageImagesRunModal.ts: getVaultFolders() attempts vault.getAllFolders() via unknown cast and typeof guard, falls back to getAllLoadedFiles().filter() for older API versions"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Demonstrates defensive coding against API version differences. The unknown cast + typeof pattern is a clean way to probe for optional API methods."
+    },
+    {
+      "id": "SK-020",
+      "skill": "Using Electron shell API for OS-native folder reveal from a desktop plugin",
+      "evidence": [
+        "src/main.ts: electron.remote.shell.openPath() or shell.openPath() for revealing output directories",
+        "src/ui/JobsView.ts: Same pattern for reveal button in job cards"
+      ],
+      "evidence_strength": "moderate",
+      "transferable": false,
+      "notes": "Electron-specific. Evidence is moderate because the actual Electron import pattern is not fully visible (may rely on Obsidian's electron re-export)."
+    },
+    {
+      "id": "SK-021",
+      "skill": "Designing vault-integrated output directory conventions with per-run isolation",
+      "evidence": [
+        "src/main.ts: Output written to {outputRoot}/{runId}/ where outputRoot is configurable and runId is timestamp-based",
+        "README.md: Documents output structure as pdf-toolkit_Output/<run-id>/ with CLI-written manifest.json per run"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Each CLI run gets its own isolated output directory, preventing cross-run interference and enabling reproducible audit trails."
+    },
+    {
+      "id": "SK-022",
+      "skill": "Mapping verbosity levels to CLI flag arrays",
+      "evidence": [
+        "src/cli.ts: verbosityArgs() maps 'quiet'→['-q'], 'verbose'→['-v'], 'normal'→[] and prepends to CLI args"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Simple but clean mapping from enum-like type to CLI flags. Demonstrates the pattern of translating structured settings to CLI arguments."
+    },
+    {
+      "id": "SK-023",
+      "skill": "Writing an Obsidian plugin settings tab with persisted configuration",
+      "evidence": [
+        "src/settings.ts: Extends PluginSettingTab, renders settings with Setting() API, persists via plugin.saveSettings()",
+        "src/settings.ts: Text fields, dropdown, toggle mapped to PdfToolkitSettings interface"
+      ],
+      "evidence_strength": "strong",
+      "transferable": false,
+      "notes": "Obsidian-specific. Demonstrates the standard PluginSettingTab pattern with async save on change."
+    },
+    {
+      "id": "SK-024",
+      "skill": "Filtering filesystem entries to exclude hidden and system folders",
+      "evidence": [
+        "src/ui/modals/PageImagesRunModal.ts: isHiddenOrSystemFolder() splits path on '/' and checks if any segment starts with '.'"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Simple but important filesystem hygiene pattern. Prevents plugin from operating on .obsidian, .git, or other dot-prefixed folders."
+    },
+    {
+      "id": "SK-025",
+      "skill": "Structuring a plugin manifest with version constraints and platform targeting",
+      "evidence": [
+        "manifest.json: id, name, version, minAppVersion: 1.5.0, isDesktopOnly: true, description, author fields"
+      ],
+      "evidence_strength": "strong",
+      "transferable": false,
+      "notes": "Obsidian manifest format. The isDesktopOnly flag correctly reflects the subprocess dependency."
+    },
+    {
+      "id": "SK-026",
+      "skill": "Reconciling vault state after external filesystem changes from subprocess output",
+      "evidence": [
+        "src/main.ts: Calls this.app.vault.adapter.reconcileChanges() after CLI execution to sync vault index with filesystem"
+      ],
+      "evidence_strength": "strong",
+      "transferable": false,
+      "notes": "Obsidian-specific but conceptually transferable: after external processes modify the filesystem, the application's internal index must be refreshed."
+    },
+    {
+      "id": "SK-027",
+      "skill": "Writing clear README documentation with architecture rationale, configuration reference, and troubleshooting guidance",
+      "evidence": [
+        "README.md: Sections covering purpose, CLI-first contract rationale, feature list, output structure, settings reference, known limitations, and troubleshooting"
+      ],
+      "evidence_strength": "moderate",
+      "transferable": true,
+      "notes": "Moderate because the README is functional but not extensive. Covers essential user-facing concerns concisely."
+    },
+    {
+      "id": "SK-028",
+      "skill": "Parsing and sanitizing user text input for CLI argument construction",
+      "evidence": [
+        "src/settings.ts: cliArgsPrefix parsed via .trim().split(' ').filter(Boolean) to handle whitespace",
+        "src/ui/modals/PageImagesRunModal.ts: Numeric inputs parsed with parseInt/parseFloat with NaN and range checks",
+        "src/ui/modals/RenderOptionsModal.ts: DPI input validated as integer in range before CLI construction"
+      ],
+      "evidence_strength": "moderate",
+      "transferable": true,
+      "notes": "Moderate because full sanitization against injection is not implemented (relies on spawn array args rather than shell string). The spawn-with-array pattern is itself a safety measure."
+    },
+    {
+      "id": "SK-029",
+      "skill": "Using spawn with argument arrays instead of shell strings for subprocess safety",
+      "evidence": [
+        "src/cli.ts: spawn(command, fullArgs, opts) where fullArgs is string[] — avoids shell interpolation vulnerabilities"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Security-relevant pattern. Using spawn with an array of arguments avoids shell injection risks inherent in exec() or shell: true."
+    },
+    {
+      "id": "SK-030",
+      "skill": "Designing a multi-command plugin with shared execution infrastructure",
+      "evidence": [
+        "src/main.ts: Four commands (render, split, rotate, page-images) share executeJob(), ensureFolderExists(), settings validation, and job recording infrastructure",
+        "src/main.ts: Each command follows the same flow: validate settings → validate file → open modal → create output dir → build args → execute → record → notify"
+      ],
+      "evidence_strength": "strong",
+      "transferable": true,
+      "notes": "Demonstrates factoring shared concerns out of individual command handlers into reusable infrastructure methods."
+    }
+  ],
+  "skill_clusters": [
+    {
+      "cluster": "Subprocess Orchestration",
+      "skill_ids": ["SK-001", "SK-002", "SK-008", "SK-011", "SK-014", "SK-015", "SK-022", "SK-029"],
+      "summary": "Designing and managing CLI subprocess lifecycles: argument construction, stream capture, exit code handling, output truncation, reentrancy guards, and run isolation."
+    },
+    {
+      "cluster": "TypeScript Type Design",
+      "skill_ids": ["SK-004", "SK-018", "SK-019"],
+      "summary": "Using TypeScript's type system for domain modeling via literal unions, discriminated unions, strict mode, type predicates, and safe API version detection."
+    },
+    {
+      "cluster": "Obsidian Plugin Development",
+      "skill_ids": ["SK-007", "SK-013", "SK-016", "SK-020", "SK-023", "SK-025", "SK-026"],
+      "summary": "Building within the Obsidian plugin framework: lifecycle hooks, vault path resolution, sidebar views, settings tabs, manifest configuration, and vault reconciliation."
+    },
+    {
+      "cluster": "Modal-Driven Configuration UI",
+      "skill_ids": ["SK-003", "SK-005", "SK-006"],
+      "summary": "Implementing interactive configuration dialogs with Promise-based resolution, conditional field visibility, and multi-step validation."
+    },
+    {
+      "cluster": "State and Storage Management",
+      "skill_ids": ["SK-009", "SK-010", "SK-012", "SK-021"],
+      "summary": "Designing job record schemas, key-partitioned persistence, bounded storage, incremental directory creation, and per-run output isolation."
+    },
+    {
+      "cluster": "Build and Project Structure",
+      "skill_ids": ["SK-017", "SK-027", "SK-030"],
+      "summary": "Configuring esbuild bundling, writing user-facing documentation, and structuring a multi-command plugin with shared infrastructure."
+    }
+  ],
+  "evidence_basis": {
+    "primary_sources": [
+      "src/main.ts (434 lines): Plugin lifecycle, command registration, job execution pipeline, error handling, path resolution",
+      "src/cli.ts (61 lines): Subprocess spawning, run ID generation, verbosity mapping",
+      "src/settings.ts (94 lines): Settings schema, persistence pattern, settings tab UI",
+      "src/jobsStore.ts (52 lines): Job record interface, bounded upsert storage",
+      "src/ui/JobsView.ts (128 lines): Sidebar view rendering, job card layout, action buttons",
+      "src/ui/modals/RenderOptionsModal.ts (102 lines): DPI validation, Promise-modal pattern",
+      "src/ui/modals/SplitOptionsModal.ts (133 lines): Discriminated union options, conditional validation",
+      "src/ui/modals/RotateOptionsModal.ts (94 lines): Literal type dropdown, minimal validation",
+      "src/ui/modals/PageImagesRunModal.ts (324 lines): Complex form with conditional visibility, multi-step validation, API fallback",
+      "esbuild.config.mjs: Bundler configuration with externals and watch mode",
+      "manifest.json: Plugin metadata and platform targeting",
+      "tsconfig.json: TypeScript strict configuration",
+      "README.md: Architecture rationale and user documentation",
+      "package.json: Dependency management and build scripts"
+    ],
+    "absent_evidence": [
+      "No test files: Cannot claim testing skills",
+      "No CI/CD workflows: Cannot claim continuous integration skills",
+      "No CHANGELOG or versioning history: Cannot claim release management skills",
+      "No contributing guide or issue templates: Cannot claim open-source community management",
+      "No linting configuration: lint script is echo 'no-lint'",
+      "No internationalization: Cannot claim i18n skills",
+      "styles.css is empty: No evidence of CSS/styling skills from this repo"
+    ]
+  },
+  "ambiguities_or_borderline_calls": [
+    {
+      "topic": "Error handling depth",
+      "assessment": "Error handling is present throughout (try-catch blocks, validation, Notice-based user feedback) but is not comprehensive — there is no retry logic, no structured error hierarchy, and CLI errors are surfaced as raw string tails. Claimed as implemented validation and notification, not as a robust error handling system.",
+      "resolution": "Included SK-006 (validation) and error handling is noted within SK-009 (job records) and SK-030 (shared infrastructure). Did not create a standalone 'robust error handling' skill."
+    },
+    {
+      "topic": "Security posture of subprocess spawning",
+      "assessment": "spawn() with argument arrays (SK-029) is a genuine security-relevant practice, but the plugin does not perform additional input sanitization beyond basic type validation. No evidence of deliberate security review or threat modeling.",
+      "resolution": "Included SK-029 as a concrete practice. Did not claim broader 'security engineering' skill."
+    },
+    {
+      "topic": "Cross-platform awareness",
+      "assessment": "windowsHide: true in spawn options shows Windows awareness. Path handling uses Obsidian's normalizePath(). However, no platform-specific branching, no Linux/macOS-specific handling, and the README notes desktop-only constraint.",
+      "resolution": "Noted within SK-002 as a detail rather than a standalone cross-platform skill, since evidence is minimal."
+    },
+    {
+      "topic": "Async/await proficiency",
+      "assessment": "Consistent async/await usage throughout, but this is standard modern TypeScript practice. The Promise-modal pattern (SK-003) is the most notable async design contribution.",
+      "resolution": "Subsumed into SK-003 and SK-002. Did not create a standalone async/await skill as it would be too generic."
+    },
+    {
+      "topic": "Schema design vs. interface definition",
+      "assessment": "The JobRecord and various Options interfaces are well-structured but are TypeScript interfaces, not standalone schemas (no JSON Schema, no validation library, no runtime type checking). The skill is closer to 'TypeScript interface design' than 'schema engineering'.",
+      "resolution": "Included as SK-004 and SK-009 with precise wording about TypeScript interfaces and literal types, not broader schema claims."
+    }
+  ],
+  "transferable_signal_notes": [
+    {
+      "skill_id": "SK-001",
+      "signal": "Integration architecture: designing thin orchestration layers around external tools. Directly applicable to any microservice, API gateway, or tool-integration role."
+    },
+    {
+      "skill_id": "SK-002",
+      "signal": "Systems-level Node.js: subprocess management, stream handling, process lifecycle. Relevant to DevOps tooling, build systems, and automation platforms."
+    },
+    {
+      "skill_id": "SK-003",
+      "signal": "UI/UX pattern: async dialog collection with structured return types. Transferable to any form-driven application."
+    },
+    {
+      "skill_id": "SK-009",
+      "signal": "Operational observability: designing audit trail records for automated operations. Relevant to any system that needs execution history."
+    },
+    {
+      "skill_id": "SK-014",
+      "signal": "Concurrency safety: reentrancy guards for UI-triggered long operations. Common need in desktop apps, web UIs, and CLI tools."
+    },
+    {
+      "skill_id": "SK-029",
+      "signal": "Security-aware subprocess invocation: spawn with array args to prevent injection. A best practice signal for any role involving system command execution."
+    }
+  ],
+  "overclaim_risks": [
+    {
+      "risk": "Claiming 'testing skills' from this repo",
+      "reason": "No test files, no test configuration, no test framework. Zero evidence."
+    },
+    {
+      "risk": "Claiming 'CI/CD skills' from this repo",
+      "reason": "No GitHub Actions workflows or any automation pipeline."
+    },
+    {
+      "risk": "Claiming 'CSS/UI design' from this repo",
+      "reason": "styles.css is empty. All UI is Obsidian's built-in Setting API and raw createEl() calls."
+    },
+    {
+      "risk": "Claiming 'schema-driven design' as a strong skill",
+      "reason": "Interfaces are TypeScript-only, not runtime-validated schemas. No JSON Schema, no Zod, no validation library."
+    },
+    {
+      "risk": "Claiming 'cross-platform development' as a primary skill",
+      "reason": "Only one platform-specific detail (windowsHide). Plugin is desktop-only by design."
+    },
+    {
+      "risk": "Claiming 'documentation expertise' from README alone",
+      "reason": "README is functional and clear but not extensive. No API docs, no architecture docs, no CHANGELOG."
+    }
+  ],
+  "dedupe_notes_for_cross_repo_merge": [
+    "SK-001 (thin CLI wrapper) may overlap with similar patterns in the pdf-toolkit CLI repo itself — differentiate as 'consumer-side wrapper design' vs 'CLI tool implementation'.",
+    "SK-002 (subprocess spawning) is a common pattern; dedupe across any repo that spawns child processes, keeping the most detailed evidence.",
+    "SK-004 (TypeScript literal types) will likely recur in any TypeScript project — merge into a single canonical skill with multiple evidence sources.",
+    "SK-017 (esbuild config) may overlap with other JS/TS project builds — dedupe into a general 'bundler configuration' skill with tool-specific notes.",
+    "SK-018 (strict TypeScript) will recur in every strict TS project — keep as one canonical skill with evidence count.",
+    "Obsidian-specific skills (SK-007, SK-016, SK-020, SK-023, SK-025, SK-026) should be tagged as platform-specific and may not appear in other repos.",
+    "SK-027 (README documentation) will likely be present in most repos — merge into a single skill with quality assessment per repo."
+  ],
+  "main_takeaway": "This repository demonstrates a disciplined, integration-aware plugin development approach. The strongest skill signals are in subprocess orchestration design (spawning, stream capture, output isolation, reentrancy safety), TypeScript type modeling for domain options, and the architectural decision to maintain a strict CLI-first contract where the plugin remains a thin orchestration layer. The codebase is lean and purposeful (~1,400 LOC), with consistent patterns applied across all commands. The absence of tests, CI, and linting configuration is a notable gap that limits the extractable skill surface. The most transferable capabilities are the subprocess management patterns, the Promise-modal UI pattern, and the general integration architecture discipline."
+}
